@@ -550,45 +550,14 @@
 
 		public function grab(array &$param_pool = null) {
 			$result = new XMLElement($this->dsParamROOTELEMENT);
-
+			
 			try {
 				require_once(TOOLKIT . '/class.gateway.php');
 				require_once(TOOLKIT . '/class.xsltprocess.php');
 				require_once(CORE . '/class.cacheable.php');
-
+				
 				$this->dsParamURL = $this->parseParamURL($this->dsParamURL);
-
-				if(isset($this->dsParamXPATH)) $this->dsParamXPATH = $this->__processParametersInString($this->dsParamXPATH, $this->_env);
-
-				// Builds a Default Stylesheet to transform the resulting XML with
-				$stylesheet = new XMLElement('xsl:stylesheet');
-				$stylesheet->setAttributeArray(array('version' => '1.0', 'xmlns:xsl' => 'http://www.w3.org/1999/XSL/Transform'));
-
-				$output = new XMLElement('xsl:output');
-				$output->setAttributeArray(array('method' => 'xml', 'version' => '1.0', 'encoding' => 'utf-8', 'indent' => 'yes', 'omit-xml-declaration' => 'yes'));
-				$stylesheet->appendChild($output);
-
-				$template = new XMLElement('xsl:template');
-				$template->setAttribute('match', '/');
-
-				$instruction = new XMLElement('xsl:copy-of');
-
-				// Namespaces
-				if(isset($this->dsParamNAMESPACES) && is_array($this->dsParamNAMESPACES)){
-					foreach($this->dsParamNAMESPACES as $name => $uri) {
-						$instruction->setAttribute('xmlns' . ($name ? ":{$name}" : NULL), $uri);
-					}
-				}
-
-				// XPath
-				$instruction->setAttribute('select', $this->dsParamXPATH);
-
-				$template->appendChild($instruction);
-				$stylesheet->appendChild($template);
-				$stylesheet->setIncludeHeader(true);
-
-				$xsl = $stylesheet->generate(true);
-
+				
 				// Check for an existing Cache for this Datasource
 				$cache_id = self::buildCacheID($this);
 				$cache = new Cacheable(Symphony::Database());
@@ -749,7 +718,38 @@
 				// If `force_empty_result` is false and `$result` is an instance of
 				// XMLElement, build the `$result`.
 				if(!$this->_force_empty_result && is_object($result)) {
-					$proc = new XsltProcess;
+					if(isset($this->dsParamXPATH)) $this->dsParamXPATH = $this->__processParametersInString($this->dsParamXPATH, $this->_env);
+
+					// Builds a Default Stylesheet to transform the resulting XML with
+					$stylesheet = new XMLElement('xsl:stylesheet');
+					$stylesheet->setAttributeArray(array('version' => '1.0', 'xmlns:xsl' => 'http://www.w3.org/1999/XSL/Transform'));
+
+					$output = new XMLElement('xsl:output');
+					$output->setAttributeArray(array('method' => 'xml', 'version' => '1.0', 'encoding' => 'utf-8', 'indent' => 'yes', 'omit-xml-declaration' => 'yes'));
+					$stylesheet->appendChild($output);
+
+					$template = new XMLElement('xsl:template');
+					$template->setAttribute('match', '/');
+
+					$instruction = new XMLElement('xsl:copy-of');
+
+					// Namespaces
+					if(isset($this->dsParamNAMESPACES) && is_array($this->dsParamNAMESPACES)){
+						foreach($this->dsParamNAMESPACES as $name => $uri) {
+							$instruction->setAttribute('xmlns' . ($name ? ":{$name}" : NULL), $uri);
+						}
+					}
+
+					// XPath
+					$instruction->setAttribute('select', $this->dsParamXPATH);
+
+					$template->appendChild($instruction);
+					$stylesheet->appendChild($template);
+					$stylesheet->setIncludeHeader(true);
+
+					$xsl = $stylesheet->generate(true);
+					
+					$proc = new XsltProcess();
 					$ret = $proc->process($data, $xsl);
 
 					if($proc->isErrors()) {
