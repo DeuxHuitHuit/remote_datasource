@@ -6,6 +6,8 @@
 	Class RemoteDatasource extends DataSource implements iDatasource {
 
 		private static $url_result = null;
+		
+		public $dsParamOAUTH_URL = null;
 
 		public static function getName() {
 			return __('Remote Datasource');
@@ -601,8 +603,22 @@
 					|| (time() - $cachedData['creation']) > ($this->dsParamCACHE * 60) // The cache is old.
 				){
 					if(Mutex::acquire($cache_id, $this->dsParamTIMEOUT, TMP)) {
-						$ch = new Gateway;
-						$ch->init($this->dsParamURL);
+						// Check if oauth is needed and get the access_token
+						$access_token = $this->getOAuthAccessToken();
+						
+						// If we have an access token, append it to the url
+						$url = $this->dsParamURL;
+						if (strlen($access_token) > 0) {
+							if (strpos($url, '?') === FALSE) {
+								$url .= '?';
+							} else {
+								$url .= '&';
+							}
+							$url .= $access_token;
+						}
+						
+						$ch = new Gateway();
+						$ch->init($url);
 						$ch->setopt('TIMEOUT', $this->dsParamTIMEOUT);
 
 						// Set the approtiate Accept: headers depending on the format of the URL.
@@ -771,6 +787,45 @@
 			$result->setAttribute('url', General::sanitize($this->dsParamURL));
 
 			return $result;
+		}
+		
+		/**
+		 * If the dsParamOAUTH_URL property is a valid url, this function will 
+		 * make a HTTP request to the given url in order to generate oAuth's access token.
+		 * 
+		 * @return string
+		 *   The access_token as formatted by the `parseOAuthAccessToken` function
+		 */
+		protected function getOAuthAccessToken() {
+			$access_token = '';
+			
+			if (filter_var($this->dsParamOAUTH_URL, FILTER_VALIDATE_URL)) {
+				$ch = new Gateway();
+				$ch->init($this->dsParamOAUTH_URL);
+				$ch->setopt('TIMEOUT', $this->dsParamTIMEOUT);
+					
+				$data = $ch->exec();
+				$access_token = $this->parseOAuthAccessToken($data);
+			}
+			
+			return $access_token;
+		}
+		
+		/**
+		 * This function allows custom data source developer to 
+		 * do extra parsing of the http response body.
+		 * 
+		 * Note that the default implementation does nothing else than
+		 * returning the $reponse parameter;
+		 * 
+		 * @param string $response - the HTTP response body
+		 * 
+		 * @return string
+		 *   A properly formatted string, beginning with the constant "access_token="array"
+		 *   followed by the token value; 
+		 */
+		protected function parseOAuthAccessToken($response) {
+			return $response;
 		}
 	}
 

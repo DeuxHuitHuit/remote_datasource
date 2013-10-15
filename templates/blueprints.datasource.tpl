@@ -10,6 +10,7 @@
 		public $dsParamXPATH = '%s';
 		public $dsParamCACHE = %d;
 		public $dsParamTIMEOUT = %d;
+		public $dsParamOAUTH_URL = null;
 
 		<!-- NAMESPACES -->
 
